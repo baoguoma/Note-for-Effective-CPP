@@ -81,6 +81,9 @@ f(cx)  // expr类型是const int, ParamType是 const T&,所以T匹配到 int
 f(rx)  // expr类型是const int&, &去掉,剩下const int, 匹配const T&, 
        // 所以T还是int
 ```
+
+如果param的类型是*,指针, 那么处理法则和引用&一样.
+
 第一种情况到此结束
 
 **情况2: ParamType 是通用引用 T&&**
@@ -119,5 +122,7 @@ f(rx); //rx是const int&, lvalue, 所以param是T&, T&和const int&匹配
 f(27); //27是rvalue, int类型, 根据要点2, param是T&&, 
        //expr的类型int和T&&匹配,T就匹配到了int, 所以T是int
 ```
+
+
 
 
