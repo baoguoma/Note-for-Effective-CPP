@@ -122,7 +122,96 @@ f(rx); //rx是const int&, lvalue, 所以param是T&, T&和const int&匹配
 f(27); //27是rvalue, int类型, 根据要点2, param是T&&, 
        //expr的类型int和T&&匹配,T就匹配到了int, 所以T是int
 ```
+**情况3 ParamType既不是普通引用, 也不是通用引用, 也不是指针**
 
+看个例子
+```cpp
+template<typename T>
+void f(T param); 
+```
 
+因为T不是指针和引用, 所以param是传值. 其实也就是一个copy, 是一个全新的变量.
+这个时候对T的推断,一句话概括: 把const, &, valiatle这种修饰符全部去掉, 然后再匹配.
+看例子
+
+```cpp
+int x = 27; 
+const int cx = x; 
+const int& rx = x; 
+f(x); //x是 int, param是T, 所以int匹配到了T, T就是int
+f(cx); //cx是const int, param是T, 那么const被忽略, 剩下int, 匹配到T
+f(rx); //rx是const int&, param是T, const, & 全被忽略, 剩下int, 匹配到T
+```
+
+有一个例外
+```cpp
+template<typename T>
+void f(T param); 
+const char* const ptr =  "Fun with pointers";
+f(ptr); //param 是T, ptr类型是const char* const,第二个const被忽略,但是第一个
+        //被保留, 所以T就是const char* 
+```
+
+还有一个要点, 关于数组类型. 其例子如下
+```cpp
+const char name[] = "J. P. Briggs"; // name 的类型是 const char[13],
+                                    // 
+const char * ptrToName = name;  //ptrToName的类型是const char*.
+```
+在这种情况下我们看一下模板传值和传引用的区别
+如果我们写了这样一个模板
+```cpp
+template<typename T>
+void f(T param); 
+```
+然后我们调用
+```cpp
+f(name)
+```
+那么T的类型是啥?首先param的类型是T(先写一个抽象的放在这里).然后name的类型虽然是const char[13], 但是因为这里模板是传值,name会被看成指针类型,所以name退化成了const int*,所以T就是const int*,那么param的具体类型也是const int*.
+
+如果我们有这样的模板
+```cpp
+template<typename T>
+void f(T& param); 
+```
+我们再调用f(name), 那么name的类型是啥呢? 首先param的类型是T& (先写一个抽象的放在这里). 其次因为这里的模板是传引用, 所以name的原始类型const char[13]不会退化, const char[13]直接和T&匹配, 所以T就是const char[13],数组的长度得以保留. 那么param的具体类型是啥? T&就是 const char (&)[13].
+
+根据这一点,我们可以用模板来找出数组的长度
+```cpp
+template<typename T, std::size_t N> 
+constexpr std::size_t arraySize(T (&)[N]) noexcept{
+       return N;
+} 
+```
+
+可以这样调用
+```cpp {.line-numbers}
+int keyVals[] = { 1, 3, 7, 9, 11, 22, 35 }; 
+int mappedVals[arraySize(keyVals)]; 
+```
+
+constexpr关键字使得arrySize在编译期就执行了.所以第二行的定义是合法的 
+
+最后一个点, 关于传函数
+```cpp
+void someFunc(int, double); //someFunc的类型是void (int, double)
+```
+
+我们如果有这样两个模板
+```cpp
+template<typename T>
+void f1(T param);
+
+template<typename T>
+void f2(T& param);
+```
+然后
+```cpp
+f1(someFunc) //param的类型就是void (*)(int, double)
+f2(someFunc) //param的类型是 void (&)(int, double)
+```
+
+要点1到此全部结束.
 
 
