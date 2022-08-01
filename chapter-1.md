@@ -214,4 +214,101 @@ f2(someFunc) //param的类型是 void (&)(int, double)
 
 要点1到此全部结束.
 
+# 要点2 理解auto是如如何推导类型的
+
+一句话概括, auto推导类型和模板推导类型是一样的.
+看例子
+
+```cpp
+auto x = 27;
+const auto cx = x;
+const auto& rx = x;
+```
+
+那么对于第一例子, 我们可以想象编译器会生成以下模板
+```cpp
+template<typename T> 
+void func_for_x(T param); 
+func_for_x(27); 
+```
+
+27的类型是int, 那么按照要点1, int和T做匹配, T就是int, auto也会推导出来是int
+
+对于第二个例子,我们想象有以下模板
+
+```cpp
+template<typename T> 
+void func_for_cx(const T param); 
+func_for_cx(x);
+```
+
+第三个例子我们想象有以下模板
+
+```cpp
+template<typename T> 
+void func_for_rx(const T& param); 
+func_for_rx(x); 
+```
+
+这两个例子中x的类型都是int, 然后和 ParamType匹配, T都是int
+
+那么我们回忆要点1, 它把类型推断分成了3类: 1. 是指针或者引用,但不是通用引用. 2. 是通用引用, 3. 既不是引用也不是指针 (不是引用那肯定不是通用引用)
+
+原书中对类1和类3给出了这么几个例子:
+```cpp
+auto x = 27; // 类3,
+const auto cx = x; // 类3
+const auto& rx = x; // 类1
+```
+
+我们现在回忆一下对于第3类, 模板是怎么推断的呢?
+第三类的模板长这个样子
+```cpp
+template<typename T>
+void f(T param); 
+```
+
+回忆第三类推断的规则,变量如果有const, 去掉. 如果有&, 去掉. 那么x就剩下了auto, auto和T匹配, 那也就是int.
+
+对于第一类, 模板长这样
+```cpp
+template<typename T>
+void f(T& param); 
+```
+
+回忆第一类的推断规则, 如果有&,去掉(注意这里const不会去掉). 那么x就剩下auto去匹配T&, 所以T就是auto, 也就是int.
+
+那么对于第二类, 原书给出了以下例子
+```cpp
+auto&& uref1 = x; // x是lvalue所以auto推断出来应该是
+                  //一个lvalue的引用, 那也就是int&
+ 
+auto&& uref2 = cx; // cx是lvalue, 那么auto推断出来
+                   //应该是lvalue引用, const要被保留,
+                   //所以是const int&
+ 
+auto&& uref3 = 27; // 27是rvalue, 那么auto推断出来应该是
+                   //rvalue的引用, 那就是int&&
+```
+
+还有对于数组和函数的类型推断,比较简单, 直接看例子
+```cpp
+const char name[] =  "R. N. Briggs"; //name类型const char[13]
+auto arr1 = name; // arr1类型是const char*, 数组退化成了指针,长度没了
+auto& arr2 = name; // arr2类型是 const char (&)[13], 长度保留
+void someFunc(int, double); // someFunc 类型是 void(int, double)
+auto func1 = someFunc; // func1 类型是 void (*)(int, double)函数名也退化成了指针
+auto& func2 = someFunc; // func2's type is void (&)(int, double)
+```
+
+以上是auto和模板类型推断的相似点, 下面我们来说一下不同点:
+一句话概括:如果用了大括号{}, 那么auto推断出来的结果就和模板不一样了, 看例子:
+
+```cpp
+auto x1 = 27; // auto就是int
+auto x2(27); // auto就是int
+auto x3 = { 27 }; // auto推断出来的类型是std::initializer_list<int>,
+                  // 值是 is { 27 }
+auto x4{ 27 }; // 和上例一样
+```
 
